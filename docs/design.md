@@ -30,8 +30,7 @@ ordered with the boards.
 - The flash's byte-mode command addresses against the PIO address lines.
 - Which FX3 pins the boot ROM touches in the chosen boot mode (the reset gate pin must be one
   it leaves tristated with no pull-down).
-- Supply: which PIO rail powers the cart (3.3 V nominal that reads up to 3.5 V, or +7.5 V
-  through a buck), and its current budget.
+- Current budget of the PIO 3.3 V rail (pins 17/51) against the FX3's worst case.
 
 ## FX3 pin map (tools/gen_sch.py PIO_GPIO)
 GPIF II in 16-bit mode, clocked by the console: PCLK (GPIO16) = SYSCLK1.
@@ -56,3 +55,14 @@ in the same machine that serves the bus. A slaved shift-register fallback can be
 the same nets if that proves too tight. None of the lines the boot ROM drives (GPIO42, 45,
 51, 53 and 55, AN76405 Table 30) carries a console-facing signal. GPIO51 lights the green LED
 during boot.
+
+## Power
+The cart runs from the console's PIO 3.3 V rail (pins 17/51; 3.3 V nominal, wanders to 3.5 V),
+like the existing PIO carts, which also take their logic supply from the port and keep USB VBUS
+separate. All FX3 I/O domains (VIO1-VIO5) and CVDDQ sit on it directly: the FX3 datasheet gives
+1.7-3.6 V operating for every VIO, so the bus needs no level translation, and the FX3 can never
+be powered from the bus pins while the console is off, because both come from the same rail. The
+1.2 V core and USB 3 supplies come from a buck that starts at 3.3 V in. USB VBUS goes only to the
+FX3's VBUS detect. With the console off the cart is dead and the host sees no device. With USB
+unplugged the cart still runs and still holds the console in reset until its firmware boots
+from the I2C EEPROM.
