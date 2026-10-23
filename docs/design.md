@@ -8,7 +8,12 @@
   block is master-only, so SDIN comes from GPIF II or a part slaved to the console's clocks.
 - Optional BIOS NOR flash behind /CS2, TSOP48, not fitted by default: /CE = /CS2, /OE = /RD,
   /WE = /WR0, A0-A18 and D0-D7 from the PIO bus, no flash signal to the FX3. Programmed by
-  host code on the console running from RAM.
+  host code on the console running from RAM. BIOS-region writes do reach the bus: the
+  DTL-H2700's own flasher JEDEC-programs a flash in the BIOS window. Before writing, it sets
+  the BIOS ROM delay/size register 1F801010 to 0x142433, and it restores the old value
+  afterwards. The cart's host flasher copies that sequence. The S29AL016J in byte mode takes
+  its unlock cycles at byte offsets 0xAAA/0x555 (PIO A0 on the flash's A-1); the full 2 MB
+  needs A0-A20 and a BIOS window enlarged past the 19-bit default.
 - Reset: the cart holds the console in reset until FX3 firmware runs. An N-MOSFET pulls PIO
   /RESET to GND, its gate pulled up to the cart's 3.3 V and driven by one FX3 pin (tristated
   in the boot ROM, so the console stays held); firmware drives it low to release. A second FX3
@@ -22,7 +27,6 @@ under the top-of-shell line, USB connector on the right side past the shell line
 ordered with the boards.
 
 ## Open before the schematic is final
-- Whether a CPU write to the BIOS region asserts /CS2 and /WR0 on the PIO bus.
 - The flash's byte-mode command addresses against the PIO address lines.
 - Which FX3 pins the boot ROM touches in the chosen boot mode (the reset gate pin must be one
   it leaves tristated with no pull-down).
