@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "fx3-cart")(type "KiCad")(uri "${KIPRJMOD}/lib/cart.pretty")(options "")(descr "LCSC land patterns via easyeda2kicad"))
+)
