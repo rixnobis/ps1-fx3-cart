@@ -225,20 +225,25 @@ def bead(sheet, a, b):
 
 
 # ================================================================ FX3 sheet
+# FX3 GPIO -> PIO net. GPIF II in 16-bit mode: DQ[15:0] = D15..D0, PCLK = SYSCLK1 (the bus runs
+# synchronous to the console's 33.8688 MHz clock), the strobes, selects, A0-A1, DREQ5/DACK5 and
+# the console-clocked I2S on CTL[0..12]. VIO2 GPIOs carry the slow lines. The reset gate is on
+# GPIO33, which the boot ROM leaves tristated in both USB and I2C boot (AN76405 Table 30), and
+# nothing here sits on GPIO42/45/51/53/55, which the boot ROM drives.
+PIO_GPIO = {16: "PIO_SYSCLK1",
+            17: "PIO_CS0n", 18: "PIO_RDn", 19: "PIO_WR0n", 20: "PIO_WR1n", 21: "PIO_A0", 22: "PIO_A1",
+            23: "PIO_DACK5n", 24: "PIO_DREQ5", 25: "PIO_CS5n", 26: "PIO_I2S_BCLK", 27: "PIO_I2S_LRCK",
+            28: "PIO_I2S_SDIN", 29: "PIO_A2",
+            33: "RST_HOLD", 34: "RST_SENSE", 35: "PIO_INT10n", 36: "PIO_IN2n", 37: "PIO_SBEN",
+            38: "PIO_A3", 39: "PIO_CS2n_SENSE",
+            30: "FX3_PMODE0", 31: "FX3_PMODE1", 32: "FX3_PMODE2",
+            50: "LED_R", 51: "LED_G", 52: "LED_B", 55: "FX3_UART_TX", 56: "FX3_UART_RX"}
 fx3_nets = {}
 for b, n in table("fx3"):
     g = re.match(r"^GPIO\[(\d+)\]$", n)
     if g:
         k = int(g.group(1))
-        if k <= 15:
-            fx3_nets[b] = "VD_" + fx3_dq[k]
-        elif 33 <= k <= 40:
-            fx3_nets[b] = "VD_" + fx3_dq[k - 17]
-        else:
-            fx3_nets[b] = {16: "VD_PCLK", 17: "VD_HS", 18: "VD_VS", 19: "VD_FID", 20: "VD_SOG",
-                           30: "FX3_PMODE0", 31: "FX3_PMODE1", 32: "FX3_PMODE2", 45: "TVP_RESETn",
-                           50: "LED_R", 51: "LED_G", 52: "LED_B",
-                           55: "FX3_UART_TX", 56: "FX3_UART_RX"}.get(k)
+        fx3_nets[b] = f"PIO_D{k}" if k <= 15 else PIO_GPIO.get(k)
         continue
     fx3_nets[b] = {
         "I2C_GPIO[58]": "I2C_SCL", "I2C_GPIO[59]": "I2C_SDA", "INT#": None, "NC": None,

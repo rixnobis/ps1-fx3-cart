@@ -32,3 +32,27 @@ ordered with the boards.
   it leaves tristated with no pull-down).
 - Supply: which PIO rail powers the cart (3.3 V nominal that reads up to 3.5 V, or +7.5 V
   through a buck), and its current budget.
+
+## FX3 pin map (tools/gen_sch.py PIO_GPIO)
+GPIF II in 16-bit mode, clocked by the console: PCLK (GPIO16) = SYSCLK1.
+
+| FX3 | Signal | FX3 | Signal |
+|---|---|---|---|
+| GPIO0-15 (DQ0-15) | D0-D15 | GPIO33 | reset hold gate (boot ROM: tristate) |
+| GPIO16 (PCLK) | SYSCLK1 | GPIO34 | /RESET sense |
+| GPIO17 (CTL0) | /CS0 | GPIO35 | /INT10 |
+| GPIO18 (CTL1) | /RD | GPIO36 | /IN2 (CD-ROM IRQ, Switch Board) |
+| GPIO19 (CTL2) | /WR0 | GPIO37 | SBEN |
+| GPIO20 (CTL3) | /WR1 | GPIO38 | A3 |
+| GPIO21-22 (CTL4-5) | A0, A1 | GPIO39 | /CS2 sense (flash access, read only) |
+| GPIO23 (CTL6) | DACK5 | GPIO50-52 | status LED |
+| GPIO24 (CTL7) | DREQ5 | GPIO55-56 | debug UART |
+| GPIO25 (CTL8) | /CS5 (CD-ROM, Switch Board) | GPIO58-59 | I2C boot EEPROM |
+| GPIO26-28 (CTL9-11) | I2S BCLK, LRCK (in), SDIN (out) | GPIO30-32 | PMODE straps |
+| GPIO29 (CTL12) | A2 | | |
+
+The I2S lines sit on GPIF control pins so a GPIF state can sample BCLK/LRCK and drive SDIN
+in the same machine that serves the bus. A slaved shift-register fallback can be wired from
+the same nets if that proves too tight. None of the lines the boot ROM drives (GPIO42, 45,
+51, 53 and 55, AN76405 Table 30) carries a console-facing signal. GPIO51 lights the green LED
+during boot.
