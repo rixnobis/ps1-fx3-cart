@@ -266,6 +266,9 @@ put("pio", stk("Transistor_FET", "2N7002"), "Q", "2N7002", {1: "RST_HOLD", 2: "G
     "SOT23", lcsc="C8545")
 res("pio", "1k", "RST_HOLD", "+3V3")
 res("pio", "1k", "PIO_RESETn", "RST_SENSE")
+heading("pio", "/CS2 sense: GPIO39 reads pin 39 through 1k. Pin 39 is GND on a stock console, so "
+        "GPIO39 misdriven high sinks 3.3 mA instead of shorting the pin.", width=150.0)
+res("pio", "1k", "PIO_CS2n", "PIO_CS2n_SENSE")
 heading("pio", "Defaults while the FX3 is unconfigured: SBEN low (no Switch Board takeover), /IRQ10 and "
         "/IRQ2 high (inactive), DREQ5 low (inactive; DREQ/DACK are active high).", width=150.0)
 res("pio", "10k", "PIO_SBEN", "GND")
