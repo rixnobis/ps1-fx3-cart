@@ -36,11 +36,12 @@ F, B = "F", "B"
 
 # PIO connector holes as on PIO-Dev-3 (pcsx-redux hardware/PIO-Dev/PCB/PIO-Dev-3.brd: element
 # PIO, package pixel.lbr PIOCONN, x=5.08 y=31.75 R270, EAGLE y up), in this board's y-down frame.
-# PIO-Dev-3 places the package unmirrored on EAGLE top while its body sits on the bottom (the
-# side its flat TQFP100/TSOP48 share with it), so the land pattern is drawn as seen from the
-# solder side. KiCad's Flip would mirror the holes and swap pin 1 with pin 34: J1 therefore
-# stays an F.Cu footprint at 270 deg, which reproduces PIO-Dev-3's holes, and its body on B is
-# marked by J1_BODY (B.SilkS outline and a B.Cu no-footprint rule area).
+# PIO-Dev-3 places the package unmirrored on EAGLE top. J1 stays an F.Cu footprint at 270 deg so
+# its holes are PIO-Dev-3's exactly; the staggered pattern has no mirror symmetry, so the part fits
+# from the same face as on PIO-Dev-3 and wires identically. KiCad's Flip would mirror the holes.
+# The body is taken to be on B, the face of PIO-Dev-3's flat TQFP100/TSOP48, and marked by J1_BODY
+# (B.SilkS outline and a B.Cu no-footprint rule area). If the body is on the other face, the
+# flat-only zone moves to F.
 PIO_HOLES = {"1": (6.033, 52.705), "2": (7.943, 51.435), "34": (7.943, 10.795),
              "35": (2.213, 52.705), "68": (4.123, 10.795)}
 J1_BODY = (0.2, 0.0, 5.08 + 5.05, H)    # PIOCONN tPlace outline (x 0.03-10.13), silk kept off the edge
@@ -118,7 +119,7 @@ def netlist():
 
 
 def write_project():
-    """Net classes and JLC 4-layer rules, as ps1-av-capture (docs/stackup.md there)."""
+    """Net classes and JLC 4-layer rules, as rixnobis/ps1-av-capture."""
     d = json.loads(PRO.read_text())
     board = d.setdefault("board", {})
     ds = board.setdefault("design_settings", {})
