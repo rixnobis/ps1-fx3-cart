@@ -158,7 +158,7 @@ class Sheet:
     def text(self, s, x, y, size=1.27):
         self.items.append(
             f'(text "{esc(s)}" (exclude_from_sim no) (at {fmt(x)} {fmt(y)} 0)'
-            f' (effects (font (size {size} {size})) (justify left bottom)) (uuid "{uid()}"))')
+            f' (effects (font (size {size} {size})) (justify left top)) (uuid "{uid()}"))')
 
     def place(self, sym, ref, value, x, y, nets, unit=1, footprint="", fields=(), dnp=False,
               in_bom=True, path=None):
@@ -169,14 +169,29 @@ class Sheet:
             f'(property "{k}" "{esc(v)}" (at {fmt(x)} {fmt(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))'
             for k, v in fields)
         bx0, by0, bx1, by1 = sym.bbox(unit)
+        angs = {p[2] for v in sym.pins.values() for p in v if p[3] in (unit, 0)}
+        rj = vj = "left"
+        if 180.0 not in angs:
+            # nothing on the right: reference and value beside the body, clear of the labels
+            tx = x + max(bx1, 1.27) + 2.54
+            (rx, ry), (vx, vy) = (tx, y - 1.27), (tx, y + 1.27)
+        else:
+            (rx, ry), (vx, vy) = (x + bx0, y - by1 - 3.81), (x + bx0, y - by0 + 3.81)
+            # a pin above / below carries a vertical label: end the text left of it
+            edge = lambda ang: x + min(p[0] for v in sym.pins.values() for p in v  # noqa: E731
+                                       if p[3] in (unit, 0) and p[2] == ang) - 1.27
+            if 270.0 in angs:
+                rx, rj = edge(270.0), "right"
+            if 90.0 in angs:
+                vx, vj = edge(90.0), "right"
         self.items.append(
             f'(symbol (lib_id "{sym.lib_id}") (at {fmt(x)} {fmt(y)} 0) (unit {unit})'
             f' (exclude_from_sim no) (in_bom {"yes" if in_bom else "no"}) (on_board yes)'
             f' (dnp {"yes" if dnp else "no"}) (uuid "{uid()}")'
-            f' (property "Reference" "{ref}" (at {fmt(x + bx0)} {fmt(y - by1 - 3.81)} 0)'
-            f' (effects (font (size 1.27 1.27)) (justify left)))'
-            f' (property "Value" "{esc(value)}" (at {fmt(x + bx0)} {fmt(y - by0 + 3.81)} 0)'
-            f' (effects (font (size 1.27 1.27)) (justify left)))'
+            f' (property "Reference" "{ref}" (at {fmt(rx)} {fmt(ry)} 0)'
+            f' (effects (font (size 1.27 1.27)) (justify {rj})))'
+            f' (property "Value" "{esc(value)}" (at {fmt(vx)} {fmt(vy)} 0)'
+            f' (effects (font (size 1.27 1.27)) (justify {vj})))'
             f' (property "Footprint" "{esc(footprint)}" (at {fmt(x)} {fmt(y)} 0)'
             f' (effects (font (size 1.27 1.27)) (hide yes)))'
             f' (property "Datasheet" "" (at {fmt(x)} {fmt(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))'

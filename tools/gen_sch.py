@@ -204,14 +204,16 @@ def put(sheet, sym, prefix, value, nets, fp="", unit=1, lcsc=None, dnp=False, re
     sh = SHEETS[sheet]
     x0, y0, x1, y1 = sym.bbox(unit)
     angs = {p[2] for v in sym.pins.values() for p in v if p[3] in (unit, 0)}
+    ref = ref or nextref(prefix)
     margin = 24.0 if angs & {0.0, 180.0} else 4.0       # side labels need room
     vmargin = 16.0 if angs & {90.0, 270.0} else 5.0     # labels above / below
-    w, h = (x1 - x0) + 2 * margin, (y1 - y0) + 2 * vmargin
+    # sch_lib puts reference and value right of a part with no right-hand pins: leave room
+    rmargin = margin if 180.0 in angs else max(margin, 4.5 + 1.1 * max(len(ref), len(value)))
+    w, h = (x1 - x0) + margin + rmargin, (y1 - y0) + 2 * vmargin
     if sh.cx + w > sh.bx0 + max(sh.bw, w) + 0.01:
         sh.cx, sh.cy, sh.rowh = sh.bx0, sh.cy + sh.rowh, 0.0
     x, y = sh.cx + margin - x0, sh.cy + vmargin + y1
     x, y = round(x / 2.54) * 2.54, round(y / 2.54) * 2.54
-    ref = ref or nextref(prefix)
     assert ref not in USED or unit > 1, f"duplicate reference {ref}"
     USED.add(ref)
     if lcsc is None and fp in ("R0402", "C0402", "C0603", "C0805", "FB0603", "L4030"):
