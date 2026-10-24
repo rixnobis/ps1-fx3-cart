@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the ps1-av-capture schematic: a root sheet plus five sub-sheets.
+"""Generate the ps1-fx3-cart schematic: a root sheet plus its sub-sheets.
 
 Nets are carried by global labels on every pin stub, so a net name is the same on every
 sheet. Run tools/build.sh to regenerate, run ERC and export the PDF.
@@ -27,20 +27,14 @@ FP = {
     "SOT23-5": "Package_TO_SOT_SMD:SOT-23-5",
     "SOT23-6": "Package_TO_SOT_SMD:SOT-23-6",
     "BUCK": "fx3-cart:SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BR",
-    "TVP": "fx3-cart:HTQFP-100_L14.0-W14.0-P0.50-LS16.0-BL-EP6.2",
     "FX3": "fx3-cart:BGA-121_L10.0-W10.0-R11-C11-P0.80-TL",
     "PIOCONN": "fx3-cart:PIOCONN",       # tools/eagle_pkg.py from pcsx-redux hardware/pixel.lbr
-    "PCM": "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm",
-    "USB3B": "fx3-cart:USB-B-TH_9P-L18.5-W12.0",
-    "USBC": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
     "XTAL3225": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
-    "OSC3225": "Oscillator:Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm",
     "SOIC8": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
     "USON10": "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
     "LED0603": "LED_SMD:LED_0603_1608Metric",
     "LED1615RGB": "fx3-cart:LED-ARRAY-SMD_4P-L1.6-W1.5-BR_XL-1615RGBC-RF",
     "JTAG": "Connector_PinHeader_1.27mm:PinHeader_2x05_P1.27mm_Vertical_SMD",
-    "PHD14": "Connector_JST:JST_PHD_B14B-PHDSS_2x07_P2.00mm_Vertical",
     "HDR3": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
     "HDR2": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
     "SW": "Button_Switch_SMD:SW_SPST_TL3342",
@@ -109,43 +103,12 @@ def build_fx3():
     return L.custom("CYUSB3014-BZXI", [u1, u2, u3], footprint=FP["FX3"])
 
 
-def build_tvp():
-    rows = table("tvp7002")
-    pwr = [(p, n) for p, n in rows if POWER_NAMES.match(n)]
-    data = [(p, n) for p, n in rows if re.match(r"^[RGB]_\d$", n) or n == "DATACLK"]
-    rest = [(p, n) for p, n in rows if (p, n) not in pwr and (p, n) not in data]
-    pwr.append(("101", "EP"))
-    ins = [r for r in rest if re.match(r"(RIN|GIN|BIN|SOGIN|HSYNC|VSYNC|CLAMP|COAST|EXT_CLK|FILT|PLL_F)", r[1])]
-    ctl = [r for r in rest if r not in ins]
-    u1 = {"left": [(p, n, "passive") for p, n in ins], "right": [(p, n, "passive") for p, n in ctl]}
-    data.sort(key=lambda r: ("RGBD".index(r[1][0]), -int(r[1][2]) if r[1][0] in "RGB" else 0))
-    h = (len(data) + 1) // 2
-    u2 = {"left": [(p, n, "passive") for p, n in data[:h]], "right": [(p, n, "passive") for p, n in data[h:]]}
-    pos = [(p, n, "power_in") for p, n in pwr if "VDD" in n]
-    neg = [(p, n, "power_in") for p, n in pwr if "VDD" not in n]
-    u3 = {"left": pos, "right": neg}
-    return L.custom("TVP7002", [u1, u2, u3], footprint=FP["TVP"])
-
-
-def build_pcm():
-    rows = table("pcm2903c")
-    left = [(p, n, et(n)) for p, n in rows if n in ("D+", "D-", "VBUS", "SEL0", "SEL1", "HID0", "HID1",
-                                                    "HID2", "DIN", "DOUT", "~{SSPND}", "XTI", "XTO")]
-    right = [(p, n, et(n)) for p, n in rows if (p, n, et(n)) not in left]
-    return L.custom("PCM2903C", [{"left": left, "right": right}], footprint=FP["PCM"])
-
-
 FX3 = build_fx3()
-TVP = build_tvp()
-PCM = build_pcm()
 
 # ---------------------------------------------------------------- sheets and placement
 SHEETS = {k: L.Sheet(*v) for k, v in {
-    "input": ("Input", "input.kicad_sch", "AV multi-out input, termination, ESD", "A3"),
-    "tvp": ("TVP7002", "tvp7002.kicad_sch", "TVP7002 RGB digitiser", "A2"),
     "fx3": ("FX3", "fx3.kicad_sch", "FX3 USB 3 bridge", "A2"),
-    "power": ("Power", "power.kicad_sch", "USB 3 connector and power", "A2"),
-    "audio": ("Audio", "audio.kicad_sch", "PCM2903C USB audio", "A2"),
+    "power": ("Power", "power.kicad_sch", "1.2 V buck from the PIO 3.3 V rail", "A3"),
 }.items()}
 for s in SHEETS.values():
     s.path = f"/{ROOT_UUID}/{s.uuid}"
@@ -154,7 +117,7 @@ for s in SHEETS.values():
     s.shx, s.shy, s.shh = 20.0, 30.0, 0.0                 # current shelf of blocks
 
 PAPER = {"A3": (420.0, 297.0), "A2": (594.0, 420.0), "A1": (841.0, 594.0)}
-REFS = {"U": 2, "J": 3}  # U1 TVP7002, U2 FX3, J1-J3 connectors are assigned by hand
+REFS = {"U": 1, "J": 2}  # U1 FX3, J1 PIO connector, J2 USB are assigned by hand
 ALL = []  # (ref, sym, unit, nets, value)
 USED = set()
 
@@ -259,12 +222,13 @@ for b, n in table("fx3"):
         "VIO1": "+3V3", "VIO2": "+3V3", "VIO3": "+3V3", "VIO4": "+3V3", "VIO5": "+3V3",
         "VSS": "GND", "AVSS": "GND", "U3VSSQ": "GND",
     }[n]
-heading("fx3", "CYUSB3014. GPIF II takes the TVP7002 bus: DQ[7:0]=B[9:2], DQ[15:8]=G[9:2] (VIO1), "
-        "DQ[23:16]=R[9:2] (VIO2), PCLK=DATACLK, CTL[0..3]=HS/VS/FID/SOG. All VIO at 3.3 V.")
+heading("fx3", "CYUSB3014. GPIF II in 16-bit mode takes the PIO bus: DQ[15:0]=D15..D0, PCLK=SYSCLK1, "
+        "strobes, selects, A0-A2, DREQ5/DACK5 and I2S on CTL[0..12] (VIO1). Slow lines on VIO2 GPIO33-39. "
+        "All VIO on the PIO 3.3 V rail. Map: PIO_GPIO in tools/gen_sch.py, docs/design.md.")
 for u in (1, 2, 3):
     put("fx3", FX3, "U", "CYUSB3014-BZXI", {k: v for k, v in fx3_nets.items()
                                              if any(pp[3] == u for pp in FX3.pins[k])},
-        "FX3", unit=u, lcsc="C57294", ref="U2")
+        "FX3", unit=u, lcsc="C57294", ref="U1")
 heading("fx3", "19.2 MHz crystal, FSLC[2:0]=000 through one 10k (AN70707 Figure 9). No series "
         "resistor on the crystal (AN70707). Load caps sized for a 12 pF crystal with ~5 pF stray.")
 put("fx3", stk("Device", "Crystal_GND24"), "Y", "19.2MHz", {1: "FX3_XI", 3: "FX3_XO", 2: "GND", 4: "GND"},
@@ -284,7 +248,7 @@ heading("fx3", "Reset: RC holds RESET# low > 1 ms after power (tRPW 1 ms, tRR 5 
 res("fx3", "10k", "FX3_RESETn", "FX3_CVDDQ")
 cap("fx3", "1u", "FX3_RESETn")
 put("fx3", stk("Switch", "SW_Push"), "SW", "RESET", {1: "FX3_RESETn", 2: "GND"}, "SW", lcsc="C318884")
-heading("fx3", "I2C: boot EEPROM and TVP7002 on one bus, 2k pull-ups to VIO5 (AN70707). "
+heading("fx3", "I2C: boot EEPROM, 2k pull-ups to VIO5 (AN70707). "
         "24LC1025 A2 must be tied high; A1:A0 = 00.")
 put("fx3", stk("Memory_EEPROM", "24LC1025"), "U", "24LC1025-I/SN", {
     1: "GND", 2: "GND", 3: "+3V3", 4: "GND", 5: "I2C_SDA", 6: "I2C_SCL", 7: "GND", 8: "+3V3"},
@@ -337,24 +301,6 @@ cap("fx3", "1u", "VBUS")
 cap("fx3", "100n", "VBUS")
 
 # ================================================================ power sheet
-heading("power", "USB 3 Standard-B (FX3). SS TX AC-coupled with 100 nF (placement: docs/design.md). "
-        "ESD on the receptacle side of the caps. Shield to GND through 100k || 2.2 nF (AN70707 Figure 35). "
-        "SS RX is wired P-to-N (FX3 SSRXP to receptacle SSRX-), which AN70707 p.22 allows, so the "
-        "pair reaches the receptacle without crossing.")
-put("power", stk("Connector", "USB3_B"), "J", "USB3_B", {
-    1: "VBUS", 2: "USB3_DM", 3: "USB3_DP", 4: "GND", 5: "USB3_TXN", 6: "USB3_TXP", 7: "GND",
-    8: "USB3_RXP", 9: "USB3_RXN", "SH": "USB3_SHIELD"}, "USB3B", lcsc="C7501849", ref="J2")
-cap("power", "100n", "USB3_TXN_C", "USB3_TXN")
-cap("power", "100n", "USB3_TXP_C", "USB3_TXP")
-put("power", stk("Power_Protection", "TPD4E05U06DQA"), "D", "TPD4E05U06DQAR",
-    {1: "USB3_TXN", 2: "USB3_TXP", 4: "USB3_RXP", 5: "USB3_RXN", 3: "GND", 8: "GND",
-     10: "USB3_TXN", 9: "USB3_TXP", 7: "USB3_RXP", 6: "USB3_RXN"}, "USON10", lcsc="C138714",
-    note="Flow-through: each channel's NC pad opposite (10/9/7/6) carries the same net, so the trace runs straight under the part")
-put("power", stk("Power_Protection", "USBLC6-2SC6"), "D", "USBLC6-2SC6",
-    {1: "USB3_DP", 6: "USB3_DP", 3: "USB3_DM", 4: "USB3_DM", 2: "GND", 5: "VBUS"}, "SOT23-6", lcsc="C7519")
-res("power", "100k", "USB3_SHIELD", "GND")
-cap("power", "2.2n", "USB3_SHIELD")
-cap("power", "10u", "VBUS")
 heading("power", "Supply: the PIO 3.3 V rail (pins 17/51, 3.3 V nominal, up to 3.5 V) feeds every FX3 "
         "I/O domain directly (VIO1-5 and CVDDQ, 1.7-3.6 V operating). TLV62569 buck makes the 1.2 V core "
         "and USB 3 supplies from it (SLVSDG0: VFB 0.6 V, R1 = R2 = 100k, 6.8 pF feed-forward for "
@@ -400,11 +346,11 @@ heading("power", "Power flags (ERC): " + ", ".join(sorted(flagged)))
 for n in sorted(flagged):
     put("power", stk("power", "PWR_FLAG"), "#FLG", "PWR_FLAG", {1: n})
 
-root = L.Sheet("root", "ps1-av-capture.kicad_sch", "fx3-cart: PS1 RGB + audio to USB")
+root = L.Sheet("root", "ps1-fx3-cart.kicad_sch", "ps1-fx3-cart: PS1 PIO to USB 3")
 root.uuid = ROOT_UUID
-root.text("ps1-av-capture, one channel. TVP7002 digitises the PS1 analog RGB, an FX3 bridges it to "
-          "USB 3 (UVC firmware, AN75779 pattern),\na PCM2903C presents the line audio as a USB "
-          "Audio Class device on its own port. Design notes: docs/design.md.", 20, 30, 2.0)
+root.text("ps1-fx3-cart. A PS1 expansion-port (PIO) cartridge: an FX3 bridges the PIO bus to USB 3 "
+          "through GPIF II,\nholds the console in reset until its firmware runs, and can carry an optional "
+          "BIOS NOR flash. Design notes: docs/design.md.", 20, 30, 2.0)
 sheet_nodes, pages = [], []
 for i, s in enumerate(SHEETS.values()):
     x, y = 25 + (i % 3) * 75, 60 + (i // 3) * 45
