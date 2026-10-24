@@ -29,6 +29,7 @@ FP = {
     "BUCK": "fx3-cart:SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BR",
     "TVP": "fx3-cart:HTQFP-100_L14.0-W14.0-P0.50-LS16.0-BL-EP6.2",
     "FX3": "fx3-cart:BGA-121_L10.0-W10.0-R11-C11-P0.80-TL",
+    "PIOCONN": "fx3-cart:PIOCONN",       # tools/eagle_pkg.py from pcsx-redux hardware/pixel.lbr
     "PCM": "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm",
     "USB3B": "fx3-cart:USB-B-TH_9P-L18.5-W12.0",
     "USBC": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
