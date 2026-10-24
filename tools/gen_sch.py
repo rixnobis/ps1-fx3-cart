@@ -25,6 +25,7 @@ FP = {
     "FB0603": "Inductor_SMD:L_0603_1608Metric",
     "L4030": "Inductor_SMD:L_Sunlord_SWPA4030S",
     "SOT23-5": "Package_TO_SOT_SMD:SOT-23-5",
+    "SOT23": "Package_TO_SOT_SMD:SOT-23",
     "SOT23-6": "Package_TO_SOT_SMD:SOT-23-6",
     "USBMB3": "fx3-cart:USB-SMD_ZX360D-B-10P-30",  # LCSC C598201 land pattern, shell pads named SH
     "BUCK": "fx3-cart:SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BR",
@@ -104,10 +105,38 @@ def build_fx3():
     return L.custom("CYUSB3014-BZXI", [u1, u2, u3], footprint=FP["FX3"])
 
 
+# PIO connector, console rear-view numbering: 1-34 one side, 35-68 the other (psx-spx expansion
+# port pinout; the pad numbers of pixel.lbr's PIOCONN carry the same signals).
+# pin: (symbol pin name, net). DREQ5 and DACK5 are active high (psx-spx), the rest as named.
+PIO_PINS = {2: ("~{RESET}", "PIO_RESETn"), 3: ("DREQ5", "PIO_DREQ5"), 36: ("DACK5", "PIO_DACK5"),
+            4: ("~{CS0}", "PIO_CS0n"), 5: ("SBEN", "PIO_SBEN"), 39: ("~{CS2}", "PIO_CS2n"),
+            30: ("~{RD}", "PIO_RDn"), 64: ("~{WR0}", "PIO_WR0n"), 38: ("~{WR1}", "PIO_WR1n"),
+            37: ("~{IRQ10}", "PIO_INT10n"), 31: ("~{IRQ2}", "PIO_IN2n"), 65: ("~{CS5}", "PIO_CS5n"),
+            32: ("SYSCLK1", "PIO_SYSCLK1"), 33: ("BCLK", "PIO_I2S_BCLK"), 66: ("LRCK", "PIO_I2S_LRCK"),
+            67: ("SDIN", "PIO_I2S_SDIN"), 17: ("+3.3V", "+3V3"), 51: ("+3.3V", "+3V3"),
+            18: ("+7.5V", None), 52: ("+7.5V", None)}
+for _p in (1, 35, 34, 68, 16, 50, 19, 53):
+    PIO_PINS[_p] = ("GND", "GND")
+for _i, _p in enumerate((6, 40, 7, 41, 8, 42, 9, 43, 10, 44, 11, 45, 12, 46, 13, 47)):
+    PIO_PINS[_p] = (f"D{_i}", f"PIO_D{_i}")
+for _i, _p in enumerate((14, 48, 15, 49, 20, 54, 21, 55, 22, 56, 23, 57, 24, 58, 25, 59, 26, 60,
+                         27, 61, 28, 62, 29, 63)):
+    PIO_PINS[_p] = (f"A{_i}", f"PIO_A{_i}" if _i <= 20 else None)   # A21-A23 unused
+assert sorted(PIO_PINS) == list(range(1, 69))
+
+
+def build_pio():
+    side = lambda r: [(str(p), PIO_PINS[p][0], "passive") for p in r]  # noqa: E731
+    return L.custom("PIO_68", [{"left": side(range(1, 35)), "right": side(range(35, 69))}],
+                    ref="J", footprint=FP["PIOCONN"])
+
+
 FX3 = build_fx3()
+PIO = build_pio()
 
 # ---------------------------------------------------------------- sheets and placement
 SHEETS = {k: L.Sheet(*v) for k, v in {
+    "pio": ("PIO", "pio.kicad_sch", "PIO connector, reset hold, defaults", "A3"),
     "fx3": ("FX3", "fx3.kicad_sch", "FX3 USB 3 bridge", "A2"),
     "usb": ("USB", "usb.kicad_sch", "USB 3 connector (provisional: Micro-B)", "A3"),
     "power": ("Power", "power.kicad_sch", "1.2 V buck from the PIO 3.3 V rail", "A3"),
@@ -190,6 +219,34 @@ def bead(sheet, a, b):
     return put(sheet, stk("Device", "FerriteBead_Small"), "FB", "600R", {1: a, 2: b}, "FB0603")
 
 
+# ================================================================ PIO sheet
+heading("pio", "PIO expansion port (CN103), pin numbers as psx-spx (console rear view). On a stock "
+        "console pin 5 (SBEN) and pin 39 (/CS2) are GND and pins 31/65 are NC; they carry SBEN, /CS2, "
+        "/IRQ2 and /CS5 only with a Switch Board mod. The 3.3 V pins feed the whole cart; 7.5 V and "
+        "A21-A23 are unused.", width=150.0)
+put("pio", PIO, "J", "PIO", {p: n for p, (_, n) in PIO_PINS.items()}, "PIOCONN", ref="J1")
+heading("pio", "Reset hold: Q1 pulls PIO /RESET low while its gate is high. The gate pin GPIO33 is "
+        "tristated by the boot ROM (AN76405 Table 30), so the 1k pull-up holds the console in reset "
+        "until FX3 firmware drives GPIO33 low. Sizing: the FX3 can put a 10k pull-down on any pin "
+        "(datasheet I/O states), and AN76405 does not say the boot ROM's tristate excludes it; "
+        "1k against 10k still gives 3.3 V x 10/11 = 3.0 V on the gate, above the 2N7002's 2.5 V "
+        "maximum VGS(th). Released, GPIO33 sinks 3.3 mA, under the IOL of quarter drive (3.96 mA "
+        "even at VIO 2.5 V, datasheet Table 9). "
+        "GPIO34 senses /RESET through 1k: 3.3 mA at most if it is ever driven as an output, and an "
+        "internal 10k pull-down still reads high (3.0 V).", width=150.0)
+# Gate pull-up: 1k, not 10k. A 10k pull-up against a possible internal 10k pull-down would leave
+# the gate at 1.65 V, inside the 2N7002's 1.0-2.5 V VGS(th) spread; 1k leaves 3.0 V (3.3 V rail).
+put("pio", stk("Transistor_FET", "2N7002"), "Q", "2N7002", {1: "RST_HOLD", 2: "GND", 3: "PIO_RESETn"},
+    "SOT23", lcsc="C8545")
+res("pio", "1k", "RST_HOLD", "+3V3")
+res("pio", "1k", "PIO_RESETn", "RST_SENSE")
+heading("pio", "Defaults while the FX3 is unconfigured: SBEN low (no Switch Board takeover), /IRQ10 and "
+        "/IRQ2 high (inactive), DREQ5 low (inactive; DREQ/DACK are active high).", width=150.0)
+res("pio", "10k", "PIO_SBEN", "GND")
+res("pio", "10k", "PIO_INT10n", "+3V3")
+res("pio", "10k", "PIO_IN2n", "+3V3")
+res("pio", "10k", "PIO_DREQ5", "GND")
+
 # ================================================================ FX3 sheet
 # FX3 GPIO -> PIO net. GPIF II in 16-bit mode: DQ[15:0] = D15..D0, PCLK = SYSCLK1 (the bus runs
 # synchronous to the console's 33.8688 MHz clock), the strobes, selects, A0-A1, DREQ5/DACK5 and
@@ -198,7 +255,7 @@ def bead(sheet, a, b):
 # nothing here sits on GPIO42/45/51/53/55, which the boot ROM drives.
 PIO_GPIO = {16: "PIO_SYSCLK1",
             17: "PIO_CS0n", 18: "PIO_RDn", 19: "PIO_WR0n", 20: "PIO_WR1n", 21: "PIO_A0", 22: "PIO_A1",
-            23: "PIO_DACK5n", 24: "PIO_DREQ5", 25: "PIO_CS5n", 26: "PIO_I2S_BCLK", 27: "PIO_I2S_LRCK",
+            23: "PIO_DACK5", 24: "PIO_DREQ5", 25: "PIO_CS5n", 26: "PIO_I2S_BCLK", 27: "PIO_I2S_LRCK",
             28: "PIO_I2S_SDIN", 29: "PIO_A2",
             33: "RST_HOLD", 34: "RST_SENSE", 35: "PIO_INT10n", 36: "PIO_IN2n", 37: "PIO_SBEN",
             38: "PIO_A3", 39: "PIO_CS2n_SENSE",
