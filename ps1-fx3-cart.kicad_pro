@@ -1,0 +1,12 @@
+{
+  "erc": {
+    "rule_severities": {
+      "lib_symbol_issues": "ignore",
+      "lib_symbol_mismatch": "ignore"
+    }
+  },
+  "meta": {
+    "filename": "ps1-fx3-cart.kicad_pro",
+    "version": 3
+  }
+}
