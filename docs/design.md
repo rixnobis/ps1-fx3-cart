@@ -66,3 +66,10 @@ be powered from the bus pins while the console is off, because both come from th
 FX3's VBUS detect. With the console off the cart is dead and the host sees no device. With USB
 unplugged the cart still runs and still holds the console in reset until its firmware boots
 from the I2C EEPROM.
+
+## Parts checked against JLC stock (tools/jlc_stock.py)
+- 1.2 V core buck from the 3.3 V rail: TLV62569DBVR (2.5-5.5 V in, 2 A, SOT-23-5), C141836, deep stock.
+- USB 3 connector, open: Hirose ZX360D-B-10P USB 3.0 Micro-B (C598201, in stock) needs no lane
+  mux. A USB-C 24-pin receptacle (GCT USB4110-GF-A, C5143397, in stock) needs an orientation
+  mux for the FX3's single SuperSpeed lane, e.g. HD3SS3220 (C165155, in stock): one more
+  WQFN-30, CC handling, and a second differential crossing.
