@@ -54,7 +54,7 @@ LCSC_PASSIVE = {
     ("R0402", "2.2k"): "C25879", ("R0402", "5.1k"): "C25905", ("R0402", "6.04k 1%"): "C97819",
     ("R0402", "10k"): "C25744", ("R0402", "22.6k 1%"): "C26960", ("R0402", "33.2k 1%"): "C122548",
     ("R0402", "5.76k 1%"): "C5153969", ("R0402", "100k"): "C25741", ("R0402", "1M"): "C26083",
-    ("C0402", "33p"): "C1562", ("C0402", "12p"): "C1547", ("C0402", "330p"): "C13533",
+    ("C0402", "33p"): "C1562", ("C0402", "6.8p"): "C1576", ("C0402", "12p"): "C1547", ("C0402", "330p"): "C13533",
     ("C0402", "1n"): "C1523", ("C0402", "2.2n"): "C1531", ("C0402", "4.7n"): "C1538",
     ("C0402", "10n"): "C15195", ("C0402", "100n"): "C1525", ("C0402", "1u"): "C52923",
     ("C0603", "2.2u"): "C23630", ("C0603", "10u"): "C19702", ("C0805", "22u"): "C45783",
@@ -354,39 +354,24 @@ put("power", stk("Power_Protection", "USBLC6-2SC6"), "D", "USBLC6-2SC6",
 res("power", "100k", "USB3_SHIELD", "GND")
 cap("power", "2.2n", "USB3_SHIELD")
 cap("power", "10u", "VBUS")
-heading("power", "Three TPS563201 bucks from VBUS (SLVSD90B Table 7-2: R2 = 10k, L = 2.2 uH, "
-        "2 x 22 uF out). 3.3 V digital; 2.5 V pre-regulator for the TVP7002 1.9 V LDOs "
-        "(OSSC pattern); 1.2 V FX3 core. EN has an internal pull-down, so it is tied up through 100k.")
-for out, r1 in (("+3V3", "33.2k 1%"), ("+2V5", "22.6k 1%"), ("+1V2", "5.76k 1%")):
-    tag = out.strip("+")
-    put("power", stk("Regulator_Switching", "TPS563201"), "U", "TPS563201DDCR", {
-        1: "GND", 2: f"SW_{tag}", 3: "VBUS", 4: f"FB_{tag}", 5: f"EN_{tag}", 6: f"BST_{tag}"},
-        "BUCK", lcsc="C116592")
-    cap("power", "10u", "VBUS")
-    cap("power", "100n", "VBUS")
-    res("power", "100k", "VBUS", f"EN_{tag}")
-    cap("power", "100n", f"BST_{tag}", f"SW_{tag}")
-    put("power", stk("Device", "L"), "L", "2.2u", {1: f"SW_{tag}", 2: out}, "L4030")
-    cap("power", "22u", out)
-    cap("power", "22u", out)
-    res("power", r1, out, f"FB_{tag}")
-    res("power", "10k", f"FB_{tag}", "GND")
-heading("power", "LDOs: 2.5 V -> 1.9 V for TVP7002 AVDD/PLL and DVDD (two TLV75519, 500 mA); "
-        "VBUS -> 3.3 V for TVP7002 A33VDD alone (TLV75733, 1 A), kept off the buck rail.")
-for out in ("+1V9A", "+1V9D"):
-    put("power", stk("Regulator_Linear", "TLV75519PDBV"), "U", "TLV75519PDBVR",
-        {1: "+2V5", 2: "GND", 3: "+2V5", 4: None, 5: out}, "SOT23-5", lcsc="C2865381")
-    cap("power", "1u", "+2V5")
-    cap("power", "1u", out)
-put("power", stk("Regulator_Linear", "TLV75733PDBV"), "U", "TLV75733PDBVR",
-    {1: "VBUS", 2: "GND", 3: "VBUS", 4: None, 5: "+3V3A"}, "SOT23-5", lcsc="C485517")
-cap("power", "1u", "VBUS")
-cap("power", "1u", "+3V3A")
-heading("power", "Power LED, mounting holes.")
+heading("power", "Supply: the PIO 3.3 V rail (pins 17/51, 3.3 V nominal, up to 3.5 V) feeds every FX3 "
+        "I/O domain directly (VIO1-5 and CVDDQ, 1.7-3.6 V operating). TLV62569 buck makes the 1.2 V core "
+        "and USB 3 supplies from it (SLVSDG0: VFB 0.6 V, R1 = R2 = 100k, 6.8 pF feed-forward for "
+        "R2 = 100k, 2.2 uH, 4.7 uF in minimum, 10-47 uF out). EN tied high: the core runs whenever the "
+        "console is on.")
+put("power", stk("Regulator_Switching", "TLV62569DBV"), "U", "TLV62569DBVR",
+    {1: "+3V3", 2: "GND", 3: "SW_1V2", 4: "+3V3", 5: "FB_1V2"}, "SOT23-5", lcsc="C141836")
+cap("power", "10u", "+3V3")
+cap("power", "100n", "+3V3")
+put("power", stk("Device", "L"), "L", "2.2u", {1: "SW_1V2", 2: "+1V2"}, "L4030")
+cap("power", "22u", "+1V2")
+cap("power", "22u", "+1V2")
+res("power", "100k", "+1V2", "FB_1V2")
+cap("power", "6.8p", "+1V2", "FB_1V2")
+res("power", "100k", "FB_1V2", "GND")
+heading("power", "Power LED.")
 put("power", stk("Device", "LED"), "D", "GREEN", {1: "PWR_LED_K", 2: "+3V3"}, "LED0603", lcsc="C2986059")
 res("power", "1k", "PWR_LED_K", "GND")
-for _ in range(4):
-    put("power", stk("Mechanical", "MountingHole"), "H", "M3", {}, "MH")
 
 # ================================================================ power flags, write
 def overflow():
