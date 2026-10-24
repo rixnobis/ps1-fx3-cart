@@ -26,6 +26,7 @@ FP = {
     "L4030": "Inductor_SMD:L_Sunlord_SWPA4030S",
     "SOT23-5": "Package_TO_SOT_SMD:SOT-23-5",
     "SOT23-6": "Package_TO_SOT_SMD:SOT-23-6",
+    "USBMB3": "fx3-cart:USB-SMD_ZX360D-B-10P-30",  # LCSC C598201 land pattern, shell pads named SH
     "BUCK": "fx3-cart:SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BR",
     "FX3": "fx3-cart:BGA-121_L10.0-W10.0-R11-C11-P0.80-TL",
     "PIOCONN": "fx3-cart:PIOCONN",       # tools/eagle_pkg.py from pcsx-redux hardware/pixel.lbr
@@ -108,6 +109,7 @@ FX3 = build_fx3()
 # ---------------------------------------------------------------- sheets and placement
 SHEETS = {k: L.Sheet(*v) for k, v in {
     "fx3": ("FX3", "fx3.kicad_sch", "FX3 USB 3 bridge", "A2"),
+    "usb": ("USB", "usb.kicad_sch", "USB 3 connector (provisional: Micro-B)", "A3"),
     "power": ("Power", "power.kicad_sch", "1.2 V buck from the PIO 3.3 V rail", "A3"),
 }.items()}
 for s in SHEETS.values():
@@ -299,6 +301,39 @@ for _ in range(5):
     cap("fx3", "10n", "+3V3")
 cap("fx3", "1u", "VBUS")
 cap("fx3", "100n", "VBUS")
+
+# ================================================================ USB sheet
+def usb_micro_b():
+    """USB 3.0 Micro-B receptacle, Hirose ZX360D-B-10P.
+
+    PROVISIONAL: the connector choice is still open (docs/design.md). Micro-B is the default
+    because the FX3's single SuperSpeed lane needs no orientation mux behind it. A USB-C
+    variant replaces this function only: the FX3 side of every net (USB3_DP/DM, USB3_RXP/N,
+    USB3_TXP_C/TXN_C, VBUS, GND) stays the same.
+    """
+    heading("usb", "USB 3.0 Micro-B, Hirose ZX360D-B-10P. PROVISIONAL: connector choice open "
+            "(docs/design.md); swap usb_micro_b() in tools/gen_sch.py. SS TX AC-coupled with 100 nF, "
+            "ESD on the receptacle side of the caps. Pairs wired P to P; AN70707 p.22 allows a "
+            "P/N swap on SS RX if the layout wants it. ID open (device). Shell to GND through "
+            "100k || 2.2 nF (AN70707 Figure 35). VBUS only reaches the FX3's VBUS detect.")
+    put("usb", stk("Connector", "USB3_B_Micro"), "J", "ZX360D-B-10P", {
+        1: "VBUS", 2: "USB3_DM", 3: "USB3_DP", 4: None, 5: "GND", 6: "USB3_TXN", 7: "USB3_TXP",
+        8: "GND", 9: "USB3_RXN", 10: "USB3_RXP", "SH": "USB3_SHIELD"}, "USBMB3", lcsc="C598201",
+        ref="J2", note="Provisional connector choice, see docs/design.md")
+    cap("usb", "100n", "USB3_TXN_C", "USB3_TXN")
+    cap("usb", "100n", "USB3_TXP_C", "USB3_TXP")
+    put("usb", stk("Power_Protection", "TPD4E05U06DQA"), "D", "TPD4E05U06DQAR",
+        {1: "USB3_TXN", 2: "USB3_TXP", 4: "USB3_RXP", 5: "USB3_RXN", 3: "GND", 8: "GND",
+         10: "USB3_TXN", 9: "USB3_TXP", 7: "USB3_RXP", 6: "USB3_RXN"}, "USON10", lcsc="C138714",
+        note="Flow-through: each channel's NC pad opposite (10/9/7/6) carries the same net, so the trace runs straight under the part")
+    put("usb", stk("Power_Protection", "USBLC6-2SC6"), "D", "USBLC6-2SC6",
+        {1: "USB3_DP", 6: "USB3_DP", 3: "USB3_DM", 4: "USB3_DM", 2: "GND", 5: "VBUS"}, "SOT23-6", lcsc="C7519")
+    res("usb", "100k", "USB3_SHIELD", "GND")
+    cap("usb", "2.2n", "USB3_SHIELD")
+    cap("usb", "10u", "VBUS")
+
+
+usb_micro_b()
 
 # ================================================================ power sheet
 heading("power", "Supply: the PIO 3.3 V rail (pins 17/51, 3.3 V nominal, up to 3.5 V) feeds every FX3 "
