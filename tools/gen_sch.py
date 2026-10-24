@@ -32,6 +32,7 @@ FP = {
     "FX3": "fx3-cart:BGA-121_L10.0-W10.0-R11-C11-P0.80-TL",
     "PIOCONN": "fx3-cart:PIOCONN",       # tools/eagle_pkg.py from pcsx-redux hardware/pixel.lbr
     "XTAL3225": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
+    "TSOP48": "Package_SO:TSOP-I-48_18.4x12mm_P0.5mm",   # TS048, 12 x 20 mm
     "SOIC8": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
     "USON10": "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
     "LED0603": "LED_SMD:LED_0603_1608Metric",
@@ -131,12 +132,37 @@ def build_pio():
                     ref="J", footprint=FP["PIOCONN"])
 
 
+# S29AL016J TS048 pinout, datasheet 002-00777 Figure 1. In byte mode (BYTE# low) DQ15 is the
+# LSB address A-1 and DQ8-DQ14 float.
+S29_PINS = {1: "A15", 2: "A14", 3: "A13", 4: "A12", 5: "A11", 6: "A10", 7: "A9", 8: "A8", 9: "A19",
+            10: "NC", 11: "WE#", 12: "RESET#", 13: "NC", 14: "WP#", 15: "RY/BY#", 16: "A18", 17: "A17",
+            18: "A7", 19: "A6", 20: "A5", 21: "A4", 22: "A3", 23: "A2", 24: "A1", 25: "A0", 26: "CE#",
+            27: "VSS", 28: "OE#", 29: "DQ0", 30: "DQ8", 31: "DQ1", 32: "DQ9", 33: "DQ2", 34: "DQ10",
+            35: "DQ3", 36: "DQ11", 37: "VCC", 38: "DQ4", 39: "DQ12", 40: "DQ5", 41: "DQ13", 42: "DQ6",
+            43: "DQ14", 44: "DQ7", 45: "DQ15/A-1", 46: "VSS", 47: "BYTE#", 48: "A16"}
+
+
+def build_s29():
+    by = {n: p for p, n in S29_PINS.items() if n not in ("NC", "VSS")}
+    t = lambda n: "power_in" if n in ("VCC", "VSS") else "passive"  # noqa: E731
+    ov = lambda n: "~{%s}" % n[:-1] if n.endswith("#") else n  # noqa: E731
+    left = ["DQ15/A-1"] + [f"A{i}" for i in range(20)]
+    right = ([f"DQ{i}" for i in range(15)] + ["CE#", "OE#", "WE#", "BYTE#", "RESET#", "WP#", "RY/BY#", "VCC"])
+    L_ = [(str(by[n]), ov(n), t(n)) for n in left]
+    R_ = [(str(by[n]), ov(n), t(n)) for n in right]
+    R_ += [("27", "VSS", "power_in"), ("46", "VSS", "power_in"), ("10", "NC", "no_connect"),
+           ("13", "NC", "no_connect")]
+    return L.custom("S29AL016J70TFI020", [{"left": L_, "right": R_}], footprint=FP["TSOP48"])
+
+
 FX3 = build_fx3()
 PIO = build_pio()
+S29 = build_s29()
 
 # ---------------------------------------------------------------- sheets and placement
 SHEETS = {k: L.Sheet(*v) for k, v in {
     "pio": ("PIO", "pio.kicad_sch", "PIO connector, reset hold, defaults", "A3"),
+    "flash": ("Flash", "flash.kicad_sch", "Optional BIOS NOR flash (not fitted)", "A3"),
     "fx3": ("FX3", "fx3.kicad_sch", "FX3 USB 3 bridge", "A2"),
     "usb": ("USB", "usb.kicad_sch", "USB 3 connector (provisional: Micro-B)", "A3"),
     "power": ("Power", "power.kicad_sch", "1.2 V buck from the PIO 3.3 V rail", "A3"),
@@ -246,6 +272,26 @@ res("pio", "10k", "PIO_SBEN", "GND")
 res("pio", "10k", "PIO_INT10n", "+3V3")
 res("pio", "10k", "PIO_IN2n", "+3V3")
 res("pio", "10k", "PIO_DREQ5", "GND")
+
+# ================================================================ flash sheet
+heading("flash", "Optional BIOS NOR flash, NOT FITTED by default. S29AL016J (2 MB) in byte mode: BYTE# "
+        "low, PIO A0 on DQ15/A-1, PIO A1-A20 on flash A0-A19, so flash byte address = PIO byte address "
+        "and the unlock cycles land at BIOS offsets 0xAAA/0x555. /CE = /CS2, /OE = /RD, /WE = /WR0, "
+        "D0-D7 shared with the FX3. No flash signal goes to the FX3 (GPIO39 only senses /CS2). The "
+        "full 2 MB needs the BIOS window (1F801010) enlarged to 21 address bits. Fit only with the "
+        "Switch Board /CS2 mod: on a stock console pin 39 is GND, which would enable the flash on "
+        "every /RD. RESET# follows the console reset; WP# high; RY/BY# unused (firmware polls DQ7/DQ6).",
+        width=150.0)
+_fl = {25: "PIO_A1", 45: "PIO_A0", 26: "PIO_CS2n", 28: "PIO_RDn", 11: "PIO_WR0n", 47: "GND",
+       12: "PIO_RESETn", 14: "+3V3", 15: None, 37: "+3V3", 27: "GND", 46: "GND", 10: None, 13: None}
+for _p, _n in S29_PINS.items():
+    if _n.startswith("A") and _n[1:].isdigit():
+        _fl[_p] = f"PIO_A{int(_n[1:]) + 1}"
+    elif _n.startswith("DQ") and _n[2:].isdigit():
+        _fl[_p] = f"PIO_D{_n[2:]}" if int(_n[2:]) <= 7 else None
+assert sorted(_fl) == list(range(1, 49))
+put("flash", S29, "U", "S29AL016J70TFI020", _fl, "TSOP48", lcsc="C914935", dnp=True)
+cap("flash", "100n", "+3V3", dnp=True)
 
 # ================================================================ FX3 sheet
 # FX3 GPIO -> PIO net. GPIF II in 16-bit mode: DQ[15:0] = D15..D0, PCLK = SYSCLK1 (the bus runs
