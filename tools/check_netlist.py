@@ -64,12 +64,12 @@ D_PINS = (6, 40, 7, 41, 8, 42, 9, 43, 10, 44, 11, 45, 12, 46, 13, 47)
 A_PINS = (14, 48, 15, 49, 20, 54, 21, 55, 22, 56, 23, 57, 24, 58, 25, 59, 26, 60, 27, 61, 28)
 direct = {p: g for g, p in enumerate(D_PINS)}
 direct.update({32: 16, 4: 17, 30: 18, 64: 19, 38: 20, 14: 21, 48: 22, 36: 23, 3: 24, 65: 25,
-               33: 26, 66: 27, 67: 28, 15: 29, 37: 35, 31: 36, 5: 37, 49: 38})
+               33: 26, 66: 27, 67: 28, 15: 29, 37: 35, 31: 36, 49: 38})
 for p, g in direct.items():
     net = node_net.get(conn(p))
     if net is None or ball(g) not in nets[net]:
         bad.append(f"PIO pin {p} on {net}, want FX3 GPIO[{g}] ({fx3[f'GPIO[{g}]']}) on it")
-for p, g in ((2, 34), (39, 39)):
+for p, g in ((2, 34), (5, 37), (39, 39)):
     far = through_r(conn(p), "1k")
     if far is None or ball(g) not in nets.get(far, []):
         bad.append(f"PIO pin {p}: want one 1k to FX3 GPIO[{g}], far side is {far}")

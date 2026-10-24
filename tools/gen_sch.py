@@ -271,6 +271,9 @@ res("pio", "1k", "PIO_RESETn", "RST_SENSE")
 heading("pio", "/CS2 sense: GPIO39 reads pin 39 through 1k. Pin 39 is GND on a stock console, so "
         "GPIO39 misdriven high sinks 3.3 mA instead of shorting the pin.", width=150.0)
 res("pio", "1k", "PIO_CS2n", "PIO_CS2n_SENSE")
+heading("pio", "SBEN drive: GPIO37 reaches pin 5 through 1k. Pin 5 is GND on a stock console, so "
+        "GPIO37 driven high sinks 3.3 mA instead of shorting the pin.", width=150.0)
+res("pio", "1k", "PIO_SBEN_DRV", "PIO_SBEN")
 heading("pio", "Defaults while the FX3 is unconfigured: SBEN low (no Switch Board takeover), /IRQ10 and "
         "/IRQ2 high (inactive), DREQ5 low (inactive; DREQ/DACK are active high).", width=150.0)
 res("pio", "10k", "PIO_SBEN", "GND")
@@ -308,7 +311,7 @@ PIO_GPIO = {16: "PIO_SYSCLK1",
             17: "PIO_CS0n", 18: "PIO_RDn", 19: "PIO_WR0n", 20: "PIO_WR1n", 21: "PIO_A0", 22: "PIO_A1",
             23: "PIO_DACK5", 24: "PIO_DREQ5", 25: "PIO_CS5n", 26: "PIO_I2S_BCLK", 27: "PIO_I2S_LRCK",
             28: "PIO_I2S_SDIN", 29: "PIO_A2",
-            33: "RST_HOLD", 34: "RST_SENSE", 35: "PIO_INT10n", 36: "PIO_IN2n", 37: "PIO_SBEN",
+            33: "RST_HOLD", 34: "RST_SENSE", 35: "PIO_INT10n", 36: "PIO_IN2n", 37: "PIO_SBEN_DRV",
             38: "PIO_A3", 39: "PIO_CS2n_SENSE",
             30: "FX3_PMODE0", 31: "FX3_PMODE1", 32: "FX3_PMODE2",
             50: "LED_R", 51: "LED_G", 52: "LED_B", 55: "FX3_UART_TX", 56: "FX3_UART_RX"}
