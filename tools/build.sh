@@ -13,4 +13,9 @@ python3 -P tools/check_footprints.py build/netlist.xml
 if [ "${LCSC:-1}" = 1 ]; then python3 -P tools/check_lcsc.py build/netlist.xml; fi
 kicad-cli sch export pdf -o schematic.pdf ps1-fx3-cart.kicad_sch >/dev/null
 python3 -P tools/build_pcb.py place 2> >(grep -v "swig/python detected" >&2)
+# Copper that does not depend on J1's body face: planes, USB pairs, plane fanout, then the
+# FX3/buck supplies, crystal, I2C, USB PHY resistors and shield. Nothing on J1 is routed yet.
+python3 -P tools/route_usb.py 2> >(grep -v "swig/python detected" >&2)
+python3 -P tools/fanout.py 2> >(grep -v "swig/python detected" >&2)
+python3 -P tools/p2p_route.py 2> >(grep -v "swig/python detected" >&2)
 echo "build ok"
